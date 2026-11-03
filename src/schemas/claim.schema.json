@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://northstar.example/schemas/claim.json",
+  "type": "object",
+  "required": ["id", "policyId", "status", "incidentDate", "description", "claimedAmount", "createdAt"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^CLM-[A-F0-9]{8}$" },
+    "policyId": { "type": "string", "pattern": "^POL-[A-F0-9]{8}$" },
+    "status": { "enum": ["submitted", "under_review", "approved", "rejected"] },
+    "incidentDate": { "type": "string", "format": "date" },
+    "description": { "type": "string", "minLength": 10, "maxLength": 500 },
+    "claimedAmount": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

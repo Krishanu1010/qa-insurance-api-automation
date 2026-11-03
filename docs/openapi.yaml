@@ -1,0 +1,341 @@
+openapi: 3.1.0
+info:
+  title: Northstar Insurance API
+  version: '1.0.0'
+  description: Synthetic policy and claims API contract used by the API automation portfolio.
+servers:
+  - url: http://127.0.0.1:4180
+tags:
+  - name: OAuth
+  - name: Policies
+  - name: Claims
+  - name: Diagnostics
+paths:
+  /oauth/token:
+    post:
+      tags: [OAuth]
+      summary: Issue an OAuth 2.0 client credentials token
+      security:
+        - oauthClient: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type]
+              properties:
+                grant_type: { const: client_credentials }
+                scope: { type: string }
+      responses:
+        '200':
+          description: Access token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, scope]
+                properties:
+                  access_token: { type: string }
+                  token_type: { const: Bearer }
+                  expires_in: { type: integer }
+                  scope: { type: string }
+        '400': { description: Unsupported grant type or scope }
+        '401': { description: Client authentication failed }
+  /v1/policies:
+    get:
+      tags: [Policies]
+      summary: List policies with optional status filter and pagination
+      security: [{ oauth: [policies:read] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 20, default: 10 } }
+        - { name: status, in: query, schema: { type: string, enum: [active, cancelled] } }
+      responses:
+        '200':
+          description: Page of policies
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, page, pageSize, totalPages]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Policy' } }
+                  total: { type: integer }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  totalPages: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Policies]
+      summary: Create a policy
+      security: [{ oauth: [policies:write] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyInput' }
+      responses:
+        '201':
+          description: Policy created
+          headers:
+            Location: { schema: { type: string } }
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Policy' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/policies/{policyId}:
+    parameters:
+      - { name: policyId, in: path, required: true, schema: { type: string, pattern: '^POL-[A-F0-9]{8}$' } }
+    get:
+      tags: [Policies]
+      summary: Retrieve a policy
+      security: [{ oauth: [policies:read] }]
+      responses:
+        '200':
+          description: Policy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Policy' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Policies]
+      summary: Replace a policy's editable fields
+      security: [{ oauth: [policies:write] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyInput' }
+      responses:
+        '200':
+          description: Replaced policy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Policy' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    patch:
+      tags: [Policies]
+      summary: Partially update policy coverage or status
+      security: [{ oauth: [policies:write] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                coverageAmount: { type: number, minimum: 1000, maximum: 1000000 }
+                status: { type: string, enum: [active, cancelled] }
+      responses:
+        '200':
+          description: Updated policy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Policy' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Policies]
+      summary: Delete a policy without submitted claims
+      security: [{ oauth: [policies:write] }]
+      responses:
+        '204': { description: Policy deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Policy has claims and cannot be deleted }
+  /v1/claims:
+    post:
+      tags: [Claims]
+      summary: Submit a claim
+      security: [{ oauth: [claims:submit] }]
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 128 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClaimInput' }
+      responses:
+        '201':
+          description: Claim submitted
+          headers:
+            Location: { schema: { type: string } }
+            Idempotency-Replayed: { schema: { type: string, enum: ['true', 'false'] } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Claim' }
+        '200': { description: Existing claim replayed for the same key and request }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: Idempotency key conflict }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/claims/{claimId}:
+    parameters:
+      - { name: claimId, in: path, required: true, schema: { type: string, pattern: '^CLM-[A-F0-9]{8}$' } }
+    get:
+      tags: [Claims]
+      summary: Retrieve a claim
+      security: [{ oauth: [claims:read] }]
+      responses:
+        '200':
+          description: Claim
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Claim' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Claims]
+      summary: Review or resolve a claim
+      security: [{ oauth: [claims:adjust] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [under_review, approved, rejected] }
+      responses:
+        '200':
+          description: Claim status changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Claim' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Invalid claim status transition }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/metadata:
+    get:
+      tags: [Diagnostics]
+      summary: Return service metadata and a regional cookie
+      security: [{ oauth: [policies:read] }]
+      responses:
+        '200':
+          description: Metadata
+          headers:
+            X-API-Version: { schema: { type: string } }
+            X-Request-Id: { schema: { type: string } }
+            Set-Cookie: { schema: { type: string } }
+  /v1/rate-limit/probe:
+    get:
+      tags: [Diagnostics]
+      summary: Exercise a deterministic per-token rate limit
+      security: [{ oauth: [policies:read] }]
+      responses:
+        '200': { description: Request is under quota }
+        '429':
+          description: Request limit exceeded
+          headers:
+            Retry-After: { schema: { type: string } }
+components:
+  securitySchemes:
+    oauthClient:
+      type: http
+      scheme: basic
+      description: Client credentials authentication for the OAuth token endpoint.
+    oauth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: /oauth/token
+          scopes:
+            policies:read: List and retrieve policies
+            policies:write: Create and manage policies
+            claims:submit: Submit claims
+            claims:read: Retrieve claims
+            claims:adjust: Review claims
+  schemas:
+    PolicyInput:
+      type: object
+      additionalProperties: false
+      required: [policyholderId, type, effectiveDate, coverageAmount]
+      properties:
+        policyholderId: { type: string, minLength: 3, maxLength: 80 }
+        type: { type: string, enum: [auto, home, life] }
+        effectiveDate: { type: string, format: date }
+        coverageAmount: { type: number, minimum: 1000, maximum: 1000000 }
+    Policy:
+      type: object
+      additionalProperties: false
+      required: [id, policyholderId, type, status, effectiveDate, coverageAmount, createdAt]
+      properties:
+        id: { type: string, pattern: '^POL-[A-F0-9]{8}$' }
+        policyholderId: { type: string, minLength: 3, maxLength: 80 }
+        type: { type: string, enum: [auto, home, life] }
+        status: { type: string, enum: [active, cancelled] }
+        effectiveDate: { type: string, format: date }
+        coverageAmount: { type: number, minimum: 1000, maximum: 1000000 }
+        createdAt: { type: string, format: date-time }
+    ClaimInput:
+      type: object
+      additionalProperties: false
+      required: [policyId, incidentDate, description, claimedAmount]
+      properties:
+        policyId: { type: string, pattern: '^POL-[A-F0-9]{8}$' }
+        incidentDate: { type: string, format: date }
+        description: { type: string, minLength: 10, maxLength: 500 }
+        claimedAmount: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+    Claim:
+      type: object
+      additionalProperties: false
+      required: [id, policyId, status, incidentDate, description, claimedAmount, createdAt]
+      properties:
+        id: { type: string, pattern: '^CLM-[A-F0-9]{8}$' }
+        policyId: { type: string, pattern: '^POL-[A-F0-9]{8}$' }
+        status: { type: string, enum: [submitted, under_review, approved, rejected] }
+        incidentDate: { type: string, format: date }
+        description: { type: string, minLength: 10, maxLength: 500 }
+        claimedAmount: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+        createdAt: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid request or query parameters
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Insufficient scope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Business or schema validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

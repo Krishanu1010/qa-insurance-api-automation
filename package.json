@@ -1,0 +1,31 @@
+{
+  "name": "qa-insurance-api-automation",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": { "node": ">=22" },
+  "description": "TypeScript and Playwright API automation framework for a fictional insurance API",
+  "scripts": {
+    "test": "playwright test",
+    "pretest": "node scripts/clean-test-reports.js",
+    "test:api": "playwright test tests/api",
+    "pretest:api": "node scripts/clean-test-reports.js",
+    "test:smoke": "playwright test --grep @smoke",
+    "pretest:smoke": "node scripts/clean-test-reports.js",
+    "typecheck": "tsc --noEmit",
+    "allure:generate": "allure generate allure-results --clean -o allure-report",
+    "allure:open": "allure open allure-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "22.20.5",
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "allure": "3.22.1",
+    "allure-playwright": "3.14.0",
+    "@types/sql.js": "1.4.9",
+    "sql.js": "1.13.0",
+    "dotenv": "18.0.9",
+    "typescript": "5.9.3"
+  }
+}

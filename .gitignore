@@ -1,0 +1,12 @@
+node_modules/
+.pnpm-store/
+.pnpm/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+.env*
+!.env.example
+*.log
+coverage/
+.runtime/

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://northstar.example/schemas/policy.json",
+  "type": "object",
+  "required": ["id", "policyholderId", "type", "status", "effectiveDate", "coverageAmount", "createdAt"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^POL-[A-F0-9]{8}$" },
+    "policyholderId": { "type": "string", "minLength": 1 },
+    "type": { "enum": ["auto", "home", "life"] },
+    "status": { "enum": ["active", "cancelled"] },
+    "effectiveDate": { "type": "string", "format": "date" },
+    "coverageAmount": { "type": "number", "minimum": 1000, "maximum": 1000000 },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}
