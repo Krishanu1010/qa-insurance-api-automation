@@ -22,7 +22,8 @@ flowchart LR
   Runner[Playwright API tests] --> Fixtures[Typed fixtures and test data]
   Fixtures --> Clients[OAuth, Policy, Claims API clients]
   Clients --> Demo[Northstar demo REST API]
-  Demo --> Store[Embedded SQLite repository]
+  Demo --> Store[In-memory demo store]
+  Store --> SQLite[SQLite persistence mirror]
   Runner --> Schema[JSON Schema and business assertions]
   Runner --> Reports[Playwright and Allure reports]
   CI[GitHub Actions] --> Runner
@@ -42,7 +43,7 @@ pnpm test
 pnpm allure:generate
 ```
 
-The test configuration starts the local API automatically and generates ephemeral client credentials if none are set. The demo API listens on `127.0.0.1:4180` by default and persists synthetic state to an embedded SQLite file in `.runtime/`; no database service is required. If the port is busy, set `PORT` in `.env` to a free port; the base URL follows it automatically.
+The test configuration starts the local API automatically and generates ephemeral client credentials if none are set. The demo API listens on `127.0.0.1:4180` by default and mirrors synthetic writes to an embedded SQLite file in `.runtime/`; the API itself uses an in-memory store that resets when the server starts. No database service is required. If the port is busy, set `PORT` in `.env` to a free port; the base URL follows it automatically.
 
 To run selected checks:
 

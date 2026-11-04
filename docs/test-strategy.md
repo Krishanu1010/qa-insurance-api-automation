@@ -33,7 +33,7 @@ Use unique synthetic identifiers, no shared mutable test records, and Playwright
 
 ## Database and performance scope
 
-The local target persists policy, claim, and idempotency records to an embedded SQLite database. Selected integration checks read those rows through a separate read-only-in-practice SQL.js helper after API calls. This checks local API-to-storage mapping only; it does not prove a real insurer database or staging data correctness. The release gate does not claim load or benchmark results; rate-limit behavior is an API functional check, not a load test.
+The local target mirrors policy, claim, and idempotency writes to an embedded SQLite file while its in-memory store remains canonical and resets at server startup. Selected integration checks read those rows through a helper that issues only SELECT queries after API calls. This checks API-to-storage mapping only; it does not prove durable database-backed business behavior, a real insurer database, or staging data correctness. The release gate does not claim load or benchmark results; rate-limit behavior is an API functional check, not a load test.
 
 ## Entry and exit criteria
 

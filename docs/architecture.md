@@ -29,11 +29,11 @@ flowchart TD
 |---|---|---|
 | Request engine | Playwright `APIRequestContext` | Reuses the browser automation ecosystem, provides isolated contexts, cookie handling, and convenient CI reporting. |
 | Test language | TypeScript | Typed request/response contracts catch mistakes during development while keeping test intent readable. |
-| Local target | Node.js built-in HTTP server with embedded SQLite | No separate database service is needed, and API effects can be checked against persisted rows. The trade-off is that this target does not prove behavior against a real insurer backend. |
+| Local target | Node.js built-in HTTP server with in-memory domain state mirrored to embedded SQLite | No database service is needed, and write mapping can be checked against SQLite rows. The in-memory store is canonical and resets on startup; this does not prove durable database-backed business behavior or a real insurer backend. |
 | API clients | Domain clients for OAuth, policies, and claims | Keep URL construction and common request options reusable without hiding scenario assertions. |
 | Contract checks | JSON Schema plus explicit domain assertions | Schemas validate structure and types; test assertions validate business outcomes and status semantics. |
 | Data | Unique synthetic factories | Makes tests independent and reduces collision risk under parallel workers. |
-| Database validation | Read-only SQL.js test helper against the local SQLite file | Verifies selected API writes at the persistence boundary without adding database access to API clients. Staging database validation remains out of scope. |
+| Database validation | SQL.js test helper reads the local SQLite mirror | Verifies selected API writes are mapped into SQL rows without adding database access to API clients. The helper issues only SELECTs; staging database validation remains out of scope. |
 
 ## Boundaries
 
